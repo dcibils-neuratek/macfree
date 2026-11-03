@@ -74,7 +74,21 @@ final class AppModel {
         refreshTrashSize()
         if let flag = CommandLine.arguments.firstIndex(of: "--scan"), CommandLine.arguments.indices.contains(flag + 1) {
             startScan(path: CommandLine.arguments[flag + 1])
+        } else if CommandLine.arguments.contains("--demo") {
+            loadDemo()
         }
+    }
+
+    private func loadDemo() {
+        let demoRoot = DemoData.makeRoot()
+        root = demoRoot
+        index = LibraryIndex.build(root: demoRoot)
+        scanPath = demoRoot.path
+        browseFolder = demoRoot
+        disk = DiskUsage(total: 494_000_000_000, available: 46_000_000_000)
+        trashSize = nil
+        phase = .results
+        refreshRows()
     }
 
     // MARK: Scanning

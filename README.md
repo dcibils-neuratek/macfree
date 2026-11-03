@@ -1,12 +1,59 @@
 # MacFree
 
-A small native macOS app that shows what's using your disk and lets you clear it.
+A free, open source Mac app that shows what's filling your disk and helps you clear it.
+
+Developed by Diego Cibils.
+
+![MacFree's Disk Map, showing sample files](docs/images/disk-map.jpg)
+
+## Features
+
+- **Disk Map:** every folder and file drawn as a block sized by the space it uses. Double-click to zoom in.
+- **Sorted lists:** largest files, caches and build files, downloads, old files, and files by type.
+- **Sort and search:** by name, size, modified date, created date or kind, with a minimum size filter.
+- **Quick cleanup:** tick items anywhere in the app, see the running total, then delete them together.
+- **Safe by default:** system files and key folders are locked, and every delete asks first. Moves to the Trash can be undone.
+- **Private:** everything runs on your Mac, and iCloud files aren't downloaded during a scan.
+
+## Install
+
+1. Download `MacFree.zip` from the [latest release](https://github.com/dcibils-neuratek/macfree/releases/latest).
+2. Unzip it and move `MacFree.app` to Applications.
+3. Open it. macOS warns you because the app isn't notarized by Apple, so go to System Settings > Privacy & Security and choose Open Anyway.
+
+Requires macOS 14 or later.
+
+### Full Disk Access
+
+Without this permission, macOS keeps some folders from being scanned and totals will be low. Add MacFree under System Settings > Privacy & Security > Full Disk Access, then scan again.
+
+## Good to know
+
+- Moving items to the Trash doesn't free space until the Trash is emptied. Use Delete Permanently or Empty Trash to get it back.
+- Empty Trash clears everything in the Trash, not only what MacFree put there.
+- Deleting a file synced with iCloud also removes it from your other devices. MacFree warns you first.
+
+## Build from source
+
+You need Xcode 16 or later, or its command line tools.
 
 ```bash
 ./scripts/build-app.sh
 open build/MacFree.app
 ```
 
-Run the tests with `swift test`.
+Run the tests with:
 
-For a complete scan, add `build/MacFree.app` under System Settings > Privacy & Security > Full Disk Access. The app is ad-hoc signed, so macOS may ask again after a rebuild.
+```bash
+swift test
+```
+
+Launch with sample data, which is how the screenshots are made:
+
+```bash
+open build/MacFree.app --args --demo
+```
+
+## License
+
+[MIT](LICENSE) © 2026 Diego Cibils

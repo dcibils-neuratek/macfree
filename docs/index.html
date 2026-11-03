@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MacFree: see what's filling your Mac</title>
+<meta name="description" content="MacFree is a free, open source Mac app that maps your disk and helps you delete what you don't need.">
+<style>
+  :root {
+    --bg: #fcfcfb; --surface: #f1f0ec; --text: #171716; --muted: #5d5c57;
+    --accent: #2a78d6; --accent-ink: #fff; --line: #e2e0d9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161615; --surface: #222220; --text: #f0efec; --muted: #b4b3a9; --accent: #3987e5; --line: #33332f; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 22px 0; display: flex; justify-content: space-between; align-items: center; }
+  .brand { font-weight: 650; font-size: 18px; }
+  header a { color: var(--muted); text-decoration: none; }
+  header a:hover { color: var(--text); }
+  .hero { text-align: center; padding: 48px 0 40px; }
+  h1 { font-size: clamp(38px, 7vw, 64px); line-height: 1.06; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: clamp(18px, 2.4vw, 21px); color: var(--muted); max-width: 600px; margin: 0 auto 28px; }
+  .button {
+    display: inline-block; background: var(--accent); color: var(--accent-ink); font-weight: 600;
+    padding: 13px 26px; border-radius: 12px; text-decoration: none;
+  }
+  .button:hover { filter: brightness(1.08); }
+  .fine { font-size: 14px; color: var(--muted); margin-top: 12px; }
+  img { display: block; width: 100%; height: auto; border-radius: 14px; box-shadow: 0 18px 50px rgb(0 0 0 / 28%); }
+  .feature {
+    display: grid; grid-template-columns: 5fr 7fr; gap: 48px; align-items: center; padding: 72px 0 0;
+  }
+  h2 { font-size: 30px; line-height: 1.15; letter-spacing: -0.015em; margin: 0 0 12px; }
+  .feature p { color: var(--muted); margin: 0; }
+  .points { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 72px 0 0; }
+  .point { background: var(--surface); border-radius: 14px; padding: 20px; }
+  .point h3 { margin: 0 0 6px; font-size: 17px; }
+  .point p { margin: 0; font-size: 15px; color: var(--muted); }
+  .install { padding: 72px 0 0; }
+  .install ol { color: var(--muted); padding-left: 22px; margin: 0; }
+  .install li { margin-bottom: 6px; }
+  footer {
+    margin-top: 72px; padding: 24px 0 36px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between;
+  }
+  footer a { color: inherit; }
+  @media (max-width: 760px) {
+    .feature { grid-template-columns: 1fr; gap: 24px; padding-top: 56px; }
+    .points { grid-template-columns: 1fr; padding-top: 56px; }
+    .install { padding-top: 56px; }
+    .hero { padding-top: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="brand">MacFree</span>
+    <a href="https://github.com/dcibils-neuratek/macfree">GitHub</a>
+  </header>
+
+  <section class="hero">
+    <h1>See what's filling your Mac.</h1>
+    <p class="lede">MacFree maps your disk so the biggest files stand out, then lets you clear them in a few clicks. Free and open source.</p>
+    <a class="button" href="https://github.com/dcibils-neuratek/macfree/releases/latest/download/MacFree.zip">Download for Mac</a>
+    <p class="fine">Free. Requires macOS 14 or later.</p>
+  </section>
+
+  <img src="images/disk-map.jpg" width="1204" height="817"
+       alt="MacFree's Disk Map: sized blocks for folders such as Movies, Downloads and Library, colored by file type.">
+  <p class="fine">Screenshots use sample files.</p>
+
+  <section class="feature">
+    <div>
+      <h2>Tick it, delete it</h2>
+      <p>Sort by size or date, or jump to caches, old files and downloads. Tick what you don't need and the running total shows how much you'll get back.</p>
+    </div>
+    <img src="images/select-and-delete.jpg" width="1204" height="817" loading="lazy"
+         alt="MacFree's Largest Files list with two items ticked and a bar showing 20.6 GB selected.">
+  </section>
+
+  <section class="points">
+    <div class="point">
+      <h3>Hard to delete the wrong thing</h3>
+      <p>System files and folders your Mac depends on are locked, and every delete asks you first.</p>
+    </div>
+    <div class="point">
+      <h3>Changed your mind?</h3>
+      <p>Move items to the Trash and undo it, or delete them permanently to get the space back right away.</p>
+    </div>
+    <div class="point">
+      <h3>Your files stay yours</h3>
+      <p>MacFree scans on your Mac. It has no account, and iCloud files aren't downloaded during a scan.</p>
+    </div>
+  </section>
+
+  <section class="install">
+    <h2>Opening it the first time</h2>
+    <ol>
+      <li>Download MacFree, unzip it and move it to Applications.</li>
+      <li>Open it. macOS warns you because the app isn't notarized by Apple.</li>
+      <li>Go to System Settings &gt; Privacy &amp; Security and choose Open Anyway.</li>
+      <li>For a complete scan, add MacFree under Full Disk Access in the same settings.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <span>Developed by Diego Cibils</span>
+    <span><a href="https://github.com/dcibils-neuratek/macfree/blob/main/LICENSE">MIT License</a></span>
+  </footer>
+</div>
+</body>
+</html>

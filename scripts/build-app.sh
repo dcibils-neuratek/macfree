@@ -5,8 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 app="build/MacFree.app"
 
-swift build -c release
-binary="$(swift build -c release --show-bin-path)/MacFree"
+swift build -c release --arch arm64 --arch x86_64
+binary="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/MacFree"
 
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -27,7 +27,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
     <key>CFBundleIdentifier</key><string>com.diegocibils.macfree</string>
     <key>CFBundleName</key><string>MacFree</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.0</string>
+    <key>CFBundleShortVersionString</key><string>1.0.0</string>
     <key>CFBundleVersion</key><string>1</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
