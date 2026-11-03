@@ -21,19 +21,20 @@ public enum Safety {
 
     public static func isProtected(path rawPath: String, home: String = NSHomeDirectory()) -> Bool {
         let path = displayPath(rawPath)
+        if path == home { return true }
+        if path.hasPrefix(home + "/") {
+            let relative = String(path.dropFirst(home.count + 1))
+            if homeFolders.contains(relative) { return true }
+            if homeTrees.contains(where: { relative == $0 || relative.hasPrefix($0 + "/") }) { return true }
+            // ~/Library/Caches and friends hold the content; the folders themselves must stay.
+            let parts = relative.split(separator: "/")
+            return parts.count == 2 && parts[0] == "Library"
+        }
+
         // /usr/local is the one writable part of /usr, used by Homebrew on Intel Macs.
         if path.hasPrefix("/usr/local/") { return false }
         if protectedExact.contains(path) { return true }
-        if protectedTrees.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) { return true }
-
-        if path == home { return true }
-        guard path.hasPrefix(home + "/") else { return false }
-        let relative = String(path.dropFirst(home.count + 1))
-        if homeFolders.contains(relative) { return true }
-        if homeTrees.contains(where: { relative == $0 || relative.hasPrefix($0 + "/") }) { return true }
-        // ~/Library/Caches and friends hold the content; the folders themselves must stay.
-        let parts = relative.split(separator: "/")
-        return parts.count == 2 && parts[0] == "Library"
+        return protectedTrees.contains { path == $0 || path.hasPrefix($0 + "/") }
     }
 
     public static func isProtected(_ node: FileNode, home: String = NSHomeDirectory()) -> Bool {

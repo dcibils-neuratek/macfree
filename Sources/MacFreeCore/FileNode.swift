@@ -82,6 +82,18 @@ public final class FileNode: Identifiable, @unchecked Sendable {
         }
     }
 
+    /// Looks up a path under this folder, written the way the user knows it.
+    public func find(displayPath target: String) -> FileNode? {
+        let base = displayPath == "/" ? "" : displayPath
+        guard target.hasPrefix(base + "/") else { return nil }
+        var node = self
+        for part in target.dropFirst(base.count + 1).split(separator: "/") {
+            guard let next = node.children.first(where: { $0.name == part }) else { return nil }
+            node = next
+        }
+        return node
+    }
+
     public func isDescendant(of other: FileNode) -> Bool {
         var ancestor = parent
         while let current = ancestor {

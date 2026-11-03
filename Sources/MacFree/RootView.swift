@@ -1,3 +1,4 @@
+import AppKit
 import MacFreeCore
 import SwiftUI
 
@@ -173,7 +174,19 @@ struct DeleteConfirmationView: View {
     let items: [FileNode]
     private let visibleLimit = 6
 
-    private var total: Int64 { items.reduce(0) { $0 + $1.size } }
+    @State private var leftovers: [Leftover] = []
+    @State private var includeLeftovers = true
+
+    private var selectedLeftovers: [Leftover] { includeLeftovers ? leftovers : [] }
+    private var apps: [FileNode] { items.filter { $0.kind == .package && $0.category == .application } }
+    private var total: Int64 { items.reduce(0) { $0 + $1.size } + selectedLeftovers.reduce(0) { $0 + $1.size } }
+    private var lostDuplicateSets: Int { model.duplicateSetsLosingEveryCopy(items) }
+    private var runningApps: [String] {
+        apps.filter { app in
+            guard let id = AppLeftovers.bundleIdentifier(ofApp: app.path) else { return false }
+            return !NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty
+        }.map(\.name)
+    }
     private var hasCloudItems: Bool { items.contains { Safety.isCloudSynced(path: $0.path) } }
 
     var body: some View {
@@ -205,6 +218,30 @@ struct DeleteConfirmationView: View {
             .padding(12)
             .background(Color.primary.opacity(0.05), in: .rect(cornerRadius: 10))
 
+            if !leftovers.isEmpty {
+                Toggle(isOn: $includeLeftovers) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Also remove \(leftovers.count) related \(leftovers.count == 1 ? "item" : "items") (\(Format.size(leftovers.reduce(0) { $0 + $1.size })))")
+                        Text("Settings, caches and app data in your Library. Reinstalling starts fresh.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.checkbox)
+            }
+
+            if !runningApps.isEmpty {
+                Label("Quit \(runningApps.joined(separator: ", ")) before deleting.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            }
+
+            if lostDuplicateSets > 0 {
+                Label("This deletes every copy of \(lostDuplicateSets) duplicated \(lostDuplicateSets == 1 ? "file" : "files"), so none will remain.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            }
+
             if hasCloudItems {
                 Label("Some items sync with iCloud or another service. Deleting them removes them from your other devices too.", systemImage: "exclamationmark.icloud.fill")
                     .font(.callout)
@@ -217,16 +254,23 @@ struct DeleteConfirmationView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack {
-                Button("Delete Permanently", role: .destructive) { model.delete(items, permanently: true) }
+                Button("Delete Permanently", role: .destructive) { model.delete(items, leftovers: selectedLeftovers, permanently: true) }
                 Spacer()
                 Button("Cancel", role: .cancel) { model.pendingDeletion = nil }
                     .keyboardShortcut(.cancelAction)
-                Button("Move to Trash") { model.delete(items, permanently: false) }
+                Button("Move to Trash") { model.delete(items, leftovers: selectedLeftovers, permanently: false) }
                     .keyboardShortcut(.defaultAction)
             }
             .controlSize(.large)
         }
         .padding(22)
         .frame(width: 480)
+        .task {
+            let paths = apps.map(\.path)
+            guard !paths.isEmpty else { return }
+            leftovers = await Task.detached(priority: .userInitiated) {
+                paths.flatMap { AppLeftovers.find(appPath: $0) }
+            }.value
+        }
     }
 }

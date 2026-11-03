@@ -157,6 +157,126 @@ final class MacFreeCoreTests: XCTestCase {
         XCTAssertEqual(topLevel, root.children.reduce(0) { $0 + $1.size })
     }
 
+    private func writeCopy(of source: String, to target: String) throws {
+        let url = base.appendingPathComponent(target)
+        try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        // A plain write, because FileManager.copyItem makes an APFS clone.
+        try Data(contentsOf: base.appendingPathComponent(source)).write(to: url)
+    }
+
+    func testDuplicatesMatchContentsNotSizeAndKeepTheSettledCopy() throws {
+        try write("Documents/report.bin", bytes: 2_000_000)
+        try writeCopy(of: "Documents/report.bin", to: "Downloads/report (1).bin")
+        try write("same-size-different.bin", bytes: 2_000_000)
+        try writeCopy(of: "Documents/report.bin", to: "Library/app/report.bin")
+        try write("small.bin", bytes: 1000)
+        try writeCopy(of: "small.bin", to: "small copy.bin")
+
+        let root = try DiskScanner().scan(path: base.path).root
+        let groups = try XCTUnwrap(DuplicateFinder.find(in: root))
+        XCTAssertEqual(groups.count, 1)
+        XCTAssertEqual(groups[0].keeper?.name, "report.bin")
+        XCTAssertEqual(groups[0].extras.map(\.name), ["report (1).bin"])
+    }
+
+    func testDuplicatesSkipProjectsAndHiddenFolders() throws {
+        try write("Movies/film.bin", bytes: 2_000_000)
+        try writeCopy(of: "Movies/film.bin", to: "Code/app/.git/objects/film.bin")
+        try writeCopy(of: "Movies/film.bin", to: "Code/app/assets/film.bin")
+        try writeCopy(of: "Movies/film.bin", to: "work/build/film.bin")
+        try writeCopy(of: "Movies/film.bin", to: "work/env/lib/site-packages/film.bin")
+        try writeCopy(of: "Movies/film.bin", to: ".tool/film.bin")
+        try writeCopy(of: "Movies/film.bin", to: "Backup/film.bin")
+
+        let root = try DiskScanner().scan(path: base.path).root
+        let groups = try XCTUnwrap(DuplicateFinder.find(in: root))
+        XCTAssertEqual(groups.count, 1)
+        XCTAssertEqual(Set(groups[0].files.map { $0.path.replacingOccurrences(of: base.path + "/", with: "") }), ["Movies/film.bin", "Backup/film.bin"])
+    }
+
+    func testClonesAreNotDuplicatesBecauseDeletingThemFreesNothing() throws {
+        try write("a.bin", bytes: 2_000_000)
+        try fm.copyItem(at: base.appendingPathComponent("a.bin"), to: base.appendingPathComponent("b.bin"))
+
+        let root = try DiskScanner().scan(path: base.path).root
+        XCTAssertEqual(DuplicateFinder.find(in: root)?.count, 0)
+    }
+
+    func testDuplicateGroupUpdatesAfterACopyIsDeleted() throws {
+        try write("a.bin", bytes: 2_000_000)
+        try writeCopy(of: "a.bin", to: "b.bin")
+        let root = try DiskScanner().scan(path: base.path).root
+        let group = try XCTUnwrap(DuplicateFinder.find(in: root)?.first)
+
+        try XCTUnwrap(group.extras.first).detach()
+        XCTAssertEqual(group.remaining.count, 1)
+        XCTAssertEqual(group.wastedSize, 0)
+    }
+
+    private func makeApp(_ name: String, id: String) throws -> String {
+        let contents = base.appendingPathComponent("\(name).app/Contents")
+        try fm.createDirectory(at: contents, withIntermediateDirectories: true)
+        try (["CFBundleIdentifier": id] as NSDictionary).write(to: contents.appendingPathComponent("Info.plist"))
+        return contents.deletingLastPathComponent().path
+    }
+
+    func testLeftoversMatchExactNamesOnly() throws {
+        let app = try makeApp("Thing", id: "com.vendor.thing")
+        let home = base.path
+        try write("Library/Application Support/Thing/data.bin", bytes: 1000)
+        try write("Library/Caches/com.vendor.thing/blob", bytes: 1000)
+        try write("Library/Preferences/com.vendor.thing.plist", bytes: 100)
+        try write("Library/Group Containers/ABC123.com.vendor.thing/data", bytes: 100)
+        try write("Library/Application Support/ThingOther/keep.bin", bytes: 1000)
+        try write("Library/Caches/com.vendor.thingy/keep", bytes: 1000)
+
+        let leftovers = AppLeftovers.find(appPath: app, home: home)
+        XCTAssertGreaterThanOrEqual(leftovers.first { $0.name == "com.vendor.thing" }?.size ?? 0, 1000)
+        let found = Set(leftovers.map(\.name))
+        XCTAssertEqual(found, ["Thing", "com.vendor.thing", "com.vendor.thing.plist", "ABC123.com.vendor.thing"])
+    }
+
+    func testAppleAppsAndVendorFoldersAreNotLeftovers() throws {
+        let appleApp = try makeApp("Notes", id: "com.apple.Notes")
+        let vendorApp = try makeApp("Google", id: "com.google.thing")
+        try write("Library/Application Support/Notes/data", bytes: 100)
+        try write("Library/Application Support/Google/Chrome/data", bytes: 100)
+
+        XCTAssertEqual(AppLeftovers.find(appPath: appleApp, home: base.path), [])
+        XCTAssertEqual(AppLeftovers.find(appPath: vendorApp, home: base.path), [])
+    }
+
+    func testSuggestionsSeparateSafeGroupsWithoutOverlap() throws {
+        try write("Library/Caches/com.vendor.app/blob", bytes: 2_000_000)
+        try write("project/node_modules/lib.bin", bytes: 2_000_000)
+        try write("Downloads/setup.dmg", bytes: 2_000_000)
+        try write("Downloads/old-installer.pkg", bytes: 2_000_000)
+        try write("Downloads/notes.zip", bytes: 2_000_000)
+        try write("Downloads/new.zip", bytes: 2_000_000)
+        try write("Movies/old-film.mov", bytes: 2_000_000)
+        let longAgo = Date().addingTimeInterval(-2 * LibraryIndex.oldAge)
+        for path in ["Downloads/notes.zip", "Downloads/old-installer.pkg"] {
+            try fm.setAttributes([.modificationDate: longAgo], ofItemAtPath: base.appendingPathComponent(path).path)
+        }
+
+        let root = try DiskScanner().scan(path: base.path).root
+        let index = LibraryIndex.build(root: root)
+        let groups = Dictionary(uniqueKeysWithValues: Suggestions.build(from: index, home: base.path).map { ($0.id, $0.items.map(\.name)) })
+        XCTAssertEqual(groups["caches"], ["com.vendor.app"])
+        XCTAssertEqual(groups["builds"], ["node_modules"])
+        XCTAssertEqual(Set(groups["installers"] ?? []), ["setup.dmg", "old-installer.pkg"])
+        XCTAssertEqual(groups["stale"], ["notes.zip"])
+        XCTAssertNil(groups["old"])
+    }
+
+    func testFindLocatesNodesByDisplayPath() throws {
+        try write("a/b/c.bin", bytes: 1000)
+        let root = try DiskScanner().scan(path: base.path).root
+        XCTAssertEqual(root.find(displayPath: base.path + "/a/b/c.bin")?.name, "c.bin")
+        XCTAssertNil(root.find(displayPath: base.path + "/a/missing"))
+        XCTAssertNil(root.find(displayPath: "/elsewhere/c.bin"))
+    }
+
     func testDetachAndAttachKeepTotalsRight() throws {
         try write("a/b/one.bin", bytes: 2_000_000)
         try write("a/two.bin", bytes: 2_000_000)

@@ -17,8 +17,9 @@ struct DiskUsage {
 }
 
 struct TrashedItem {
-    let node: FileNode
-    let parent: FileNode
+    let node: FileNode?
+    let parent: FileNode?
+    let originalURL: URL
     let trashURL: URL
 }
 
@@ -48,6 +49,11 @@ final class AppModel {
     /// Bumped whenever the tree changes, so the disk map redraws.
     private(set) var treeVersion = 0
     var mapSelection: FileNode?
+
+    private(set) var duplicates: [DuplicateGroup] = []
+    private(set) var hasSearchedDuplicates = false
+    private(set) var duplicateProgress: (done: Int, total: Int)?
+    private var duplicateSearch: DuplicateSearch?
 
     var section: LibrarySection = .map { didSet { tableSelection = []; refreshRows() } }
     var browseFolder: FileNode? { didSet { tableSelection = []; mapSelection = nil; refreshRows() } }
@@ -161,6 +167,9 @@ final class AppModel {
         unreadableFolders = 0
         unreadablePaths = []
         mapSelection = nil
+        cancelDuplicates()
+        duplicates = []
+        hasSearchedDuplicates = false
     }
 
     /// What the current results cover, in the user's words.
@@ -198,6 +207,7 @@ final class AppModel {
     // MARK: Rows
 
     var isBrowsing: Bool { section == .browse || section == .map }
+    var hasCustomPage: Bool { section == .map || section == .suggestions || section == .duplicates }
 
     func refreshRows() {
         refreshTask?.cancel()
@@ -237,6 +247,54 @@ final class AppModel {
         rows.filter { ids.contains($0.id) }
     }
 
+    // MARK: Cleanup
+
+    var suggestions: [Suggestion] {
+        _ = treeVersion
+        return Suggestions.build(from: index)
+    }
+
+    var activeDuplicates: [DuplicateGroup] {
+        _ = treeVersion
+        return duplicates.filter { $0.remaining.count > 1 }
+    }
+
+    func findDuplicates() {
+        guard let root, duplicateSearch == nil else { return }
+        let search = DuplicateSearch()
+        duplicateSearch = search
+        duplicateProgress = (0, 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let groups = DuplicateFinder.find(in: root, progress: { done, total in
+                Task { @MainActor [weak self] in
+                    if self?.duplicateSearch === search { self?.duplicateProgress = (done, total) }
+                }
+            }, isCancelled: { search.isCancelled })
+            Task { @MainActor [weak self] in
+                guard let self, duplicateSearch === search else { return }
+                duplicateSearch = nil
+                duplicateProgress = nil
+                if let groups {
+                    duplicates = groups
+                    hasSearchedDuplicates = true
+                }
+            }
+        }
+    }
+
+    func cancelDuplicates() {
+        duplicateSearch?.cancel()
+        duplicateSearch = nil
+        duplicateProgress = nil
+    }
+
+    /// Duplicate sets that this deletion would remove completely.
+    func duplicateSetsLosingEveryCopy(_ items: [FileNode]) -> Int {
+        activeDuplicates.filter { group in
+            group.remaining.allSatisfy { file in items.contains { $0 === file || file.isDescendant(of: $0) } }
+        }.count
+    }
+
     // MARK: Checking
 
     var checkedItems: [FileNode] { Safety.topLevel(Array(checked.values)) }
@@ -266,22 +324,29 @@ final class AppModel {
         requestDelete(checked.isEmpty ? nodes(for: tableSelection) : checkedItems)
     }
 
-    func delete(_ nodes: [FileNode], permanently: Bool) {
+    func delete(_ nodes: [FileNode], leftovers: [Leftover] = [], permanently: Bool) {
         pendingDeletion = nil
         isDeleting = true
         // Paths must be read before any node is detached from the tree.
-        let targets = nodes.map { (node: $0, parent: $0.parent, url: $0.url) }
+        var targets = nodes.map { (node: Optional($0), parent: $0.parent, url: $0.url, size: $0.size, name: $0.name) }
+        let root = root
+        for leftover in leftovers {
+            let node = root?.find(displayPath: leftover.path)
+            if let node, nodes.contains(where: { $0 === node || node.isDescendant(of: $0) }) { continue }
+            targets.append((node, node?.parent, URL(fileURLWithPath: leftover.path), leftover.size, leftover.name))
+        }
+        let urls = targets.map(\.url)
 
         Task {
             let outcomes: [(Int, Result<URL?, Error>)] = await Task.detached(priority: .userInitiated) {
-                targets.enumerated().map { offset, target in
+                urls.enumerated().map { offset, url in
                     (offset, Result {
                         if permanently {
-                            try FileManager.default.removeItem(at: target.url)
+                            try FileManager.default.removeItem(at: url)
                             return nil
                         }
                         var inTrash: NSURL?
-                        try FileManager.default.trashItem(at: target.url, resultingItemURL: &inTrash)
+                        try FileManager.default.trashItem(at: url, resultingItemURL: &inTrash)
                         return inTrash as URL?
                     })
                 }
@@ -294,15 +359,17 @@ final class AppModel {
                 let target = targets[offset]
                 switch outcome {
                 case .success(let trashURL):
-                    removedBytes += target.node.size
-                    target.node.detach()
-                    checked[target.node.id] = nil
-                    if mapSelection === target.node { mapSelection = nil }
-                    if let trashURL, let parent = target.parent {
-                        trashed.append(TrashedItem(node: target.node, parent: parent, trashURL: trashURL))
+                    removedBytes += target.size
+                    if let node = target.node {
+                        node.detach()
+                        checked[node.id] = nil
+                        if mapSelection === node { mapSelection = nil }
+                    }
+                    if let trashURL {
+                        trashed.append(TrashedItem(node: target.node, parent: target.parent, originalURL: target.url, trashURL: trashURL))
                     }
                 case .failure:
-                    failures.append(target.node.name)
+                    failures.append(target.name)
                 }
             }
 
@@ -327,8 +394,8 @@ final class AppModel {
         var failed = 0
         for item in notice.trashed {
             do {
-                try FileManager.default.moveItem(at: item.trashURL, to: item.parent.url.appendingPathComponent(item.node.name))
-                item.node.attach(to: item.parent)
+                try FileManager.default.moveItem(at: item.trashURL, to: item.originalURL)
+                if let node = item.node, let parent = item.parent { node.attach(to: parent) }
             } catch {
                 failed += 1
             }
@@ -380,6 +447,14 @@ final class AppModel {
             NSWorkspace.shared.open(url)
         }
     }
+}
+
+private final class DuplicateSearch: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    var isCancelled: Bool { lock.withLock { cancelled } }
+    func cancel() { lock.withLock { cancelled = true } }
 }
 
 enum Format {

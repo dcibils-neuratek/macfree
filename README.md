@@ -11,6 +11,9 @@ Developed by Diego Cibils.
 - **Disk Map:** every folder and file drawn as a block sized by the space it uses. Double-click to zoom in.
 - **Sorted lists:** largest files, caches and build files, downloads, old files, and files by type.
 - **Sort and search:** by name, size, modified date, created date or kind, with a minimum size filter.
+- **Suggestions:** the easiest places to start, like caches and old installers, with the space each would free.
+- **Duplicates:** finds files with identical contents and suggests which copy to keep. App data, hidden folders and code projects are left out, because their copies are often needed.
+- **Full app removal:** deleting an app can also remove its settings, caches and data from your Library.
 - **Quick cleanup:** tick items anywhere in the app, see the running total, then delete them together.
 - **Safe by default:** system files and key folders are locked, and every delete asks first. Moves to the Trash can be undone.
 - **Private:** everything runs on your Mac, and iCloud files aren't downloaded during a scan.

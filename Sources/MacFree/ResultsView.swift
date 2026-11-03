@@ -12,7 +12,7 @@ struct ResultsView: View {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 210, ideal: 232, max: 280)
         } detail: {
-            if model.section == .map {
+            if model.hasCustomPage {
                 DetailView()
             } else {
                 DetailView()
@@ -22,7 +22,7 @@ struct ResultsView: View {
         .toolbar {
             ToolbarItem(placement: .navigation) { ScopeMenu() }
             ToolbarItemGroup(placement: .primaryAction) {
-                if !model.isBrowsing {
+                if !model.isBrowsing, !model.hasCustomPage {
                     Picker("Minimum size", selection: $model.minimumSize) {
                         Text("Any size").tag(Int64(0))
                         Text("1 MB or larger").tag(Int64(1_000_000))
@@ -68,6 +68,8 @@ private struct SidebarView: View {
                 row("Largest Files", "arrow.up.right.and.arrow.down.left.rectangle", .largest)
             }
             Section("Clean Up") {
+                row("Suggestions", "lightbulb", .suggestions, showSize: false)
+                row("Duplicates", "doc.on.doc", .duplicates, showSize: false)
                 row("Caches & Builds", "sparkles", .junk)
                 row("Downloads", "arrow.down.circle", .downloads)
                 row("Old Files", "clock.arrow.circlepath", .old)
@@ -140,14 +142,15 @@ private struct DetailView: View {
         VStack(spacing: 0) {
             header
             if model.unreadableFolders > 0 { accessBanner }
-            if model.section == .map {
-                DiskMapView()
-            } else {
-                FileTable()
+            switch model.section {
+            case .map: DiskMapView()
+            case .suggestions: SuggestionsView()
+            case .duplicates: DuplicatesView()
+            default: FileTable()
             }
         }
         .overlay {
-            if model.rows.isEmpty, model.section != .map { emptyState }
+            if model.rows.isEmpty, !model.hasCustomPage { emptyState }
         }
         .overlay {
             if model.isDeleting {
@@ -187,6 +190,8 @@ private struct DetailView: View {
     private var title: String {
         switch model.section {
         case .map: "Disk Map"
+        case .suggestions: "Suggestions"
+        case .duplicates: "Duplicates"
         case .browse: "Browse Folders"
         case .largest: "Largest Files"
         case .junk: "Caches & Builds"
@@ -208,6 +213,12 @@ private struct DetailView: View {
     private var subtitle: String {
         if model.isBrowsing, let folder = model.browseFolder {
             return "\(Format.size(folder.size)) in \(folder.fileCount.formatted()) files"
+        }
+        if model.section == .suggestions {
+            return "Good places to start. Nothing is deleted until you confirm."
+        }
+        if model.section == .duplicates {
+            return "Files with identical contents, so one copy is enough."
         }
         let count = model.matchingCount
         var text = "\(count.formatted()) \(count == 1 ? "item" : "items")"

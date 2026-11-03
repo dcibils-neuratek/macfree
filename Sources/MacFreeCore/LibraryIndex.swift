@@ -1,6 +1,8 @@
 import Foundation
 
 public enum LibrarySection: Hashable, Sendable {
+    case suggestions
+    case duplicates
     case map
     case browse
     case largest
