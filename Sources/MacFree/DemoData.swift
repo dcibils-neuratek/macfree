@@ -4,6 +4,12 @@ import MacFreeCore
 /// Made-up files for marketing screenshots, so no real home folder ends up on the website.
 /// Launch with `--demo`. None of these paths exist, so deleting in this mode does nothing.
 enum DemoData {
+    static let duplicatePairs = [
+        ("Movies/Family Trip.mp4", "Downloads/Family Trip (1).mp4"),
+        ("Documents/Tax Archive.zip", "Downloads/Tax Archive (1).zip"),
+        ("Documents/Research Papers.pdf", "Downloads/Research Papers (1).pdf"),
+    ]
+
     private indirect enum Item {
         case file(String, Double, Int = 40)
         case app(String, Double)
@@ -48,6 +54,9 @@ enum DemoData {
             .file("Annual Report.pdf", 0.4, 12),
             .file("Keynote Recording.mp4", 2.7, 150),
             .file("Sample Library.tar.gz", 1.8, 300),
+            .file("Family Trip (1).mp4", 5.4, 30),
+            .file("Tax Archive (1).zip", 2.2, 200),
+            .file("Research Papers (1).pdf", 0.8, 120),
         ]),
         .folder("Documents", [
             .file("Tax Archive.zip", 2.2, 700),

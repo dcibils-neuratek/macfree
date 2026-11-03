@@ -517,7 +517,7 @@ private struct SelectionBar: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(.bar)
+        .background(DemoRecorder.barStyle)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
@@ -543,7 +543,7 @@ private struct NoticeBar: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 9)
-        .background(.bar)
+        .background(DemoRecorder.barStyle)
         .transition(.move(edge: .bottom).combined(with: .opacity))
         .confirmationDialog("Empty the Trash?", isPresented: $confirmingEmptyTrash) {
             Button("Empty Trash", role: .destructive) { model.emptyTrash() }

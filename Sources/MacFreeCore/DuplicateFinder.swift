@@ -6,6 +6,10 @@ public struct DuplicateGroup: Identifiable, Sendable {
     /// Identical files, with the suggested copy to keep first.
     public let files: [FileNode]
 
+    public init(files: [FileNode]) {
+        self.files = files
+    }
+
     public var remaining: [FileNode] { files.filter { $0.parent != nil } }
     public var keeper: FileNode? { remaining.first }
     public var extras: [FileNode] { Array(remaining.dropFirst()) }

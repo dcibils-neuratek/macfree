@@ -97,6 +97,29 @@ final class AppModel {
         refreshRows()
     }
 
+    func loadDemoDuplicates() {
+        guard let root else { return }
+        duplicates = DemoData.duplicatePairs.compactMap { keep, copy in
+            guard let keeper = root.find(displayPath: "/Users/alex/" + keep),
+                  let extra = root.find(displayPath: "/Users/alex/" + copy) else { return nil }
+            return DuplicateGroup(files: [keeper, extra])
+        }
+        hasSearchedDuplicates = true
+    }
+
+    /// The sample files don't exist, so this only updates what's shown.
+    func applyDemoDeletion() {
+        guard let root else { return }
+        let size = checkedSize
+        for item in checkedItems { item.detach() }
+        checked = [:]
+        index = LibraryIndex.build(root: root)
+        disk?.available += size
+        treeVersion += 1
+        notice = Notice(message: "Deleted \(Format.size(size)). The space is free now.")
+        refreshRows()
+    }
+
     // MARK: Scanning
 
     func startScan(path: String) {

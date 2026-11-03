@@ -4,7 +4,7 @@ A free, open source Mac app that shows what's filling your disk and helps you cl
 
 Developed by Diego Cibils.
 
-![MacFree's Disk Map, showing sample files](docs/images/disk-map.jpg)
+![MacFree in use with sample files: the Disk Map, Suggestions, Duplicates, then deleting large files](docs/images/tour.gif)
 
 ## Features
 
@@ -55,6 +55,12 @@ Launch with sample data, which is how the screenshots are made:
 
 ```bash
 open build/MacFree.app --args --demo
+```
+
+Rebuild the website's screenshots and animated tour, which needs `ffmpeg`:
+
+```bash
+./scripts/make-tour.sh
 ```
 
 ## License

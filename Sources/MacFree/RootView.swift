@@ -14,6 +14,11 @@ struct RootView: View {
             case .results: ResultsView()
             }
         }
+        .onAppear {
+            if let folder = DemoRecorder.folder {
+                Task { await DemoRecorder.run(to: folder, model: model) }
+            }
+        }
         .alert("Something went wrong", isPresented: failureShown) {
             Button("OK") {}
         } message: {
